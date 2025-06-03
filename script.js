@@ -7,7 +7,23 @@ form.addEventListener('submit', e => {
     let operator = document.querySelector('#operator').value;
     output.innerHTML = eval(`${firstNum} ${operator} ${secondNum}`);
 
-    
+    try {
+    if (operator === '/' && secondNum == '0') {
+      throw new Error('Division by zero!');
+    }
+    if (isNaN(firstNum) || isNaN(secondNum)) {
+      throw new CustomError('Inputs must be numbers!');
+    }
+    output.innerHTML = eval(`${firstNum} ${operator} ${secondNum}`);
+    } catch (err) {
+        output.innerHTML = 'Error occurred';
+        console.error('Calculation Error:', err);
+        if (window.TrackJS) {
+            TrackJS.track(err.message);
+        }
+    } finally {
+        console.log('Calculation attempted');
+    }
 });
 
 let errorBtns = Array.from(document.querySelectorAll('#error-btns > button'));
@@ -77,6 +93,7 @@ function handleButtonClick(btn) {
     case 'Console Trace':
       onConsoleTraceClick();
       break;
+    
   }
 }
 // step 2 
@@ -93,3 +110,28 @@ if (globalErrorBtn) {
     nonexistentFunction();
   });
 }
+
+class CustomError extends Error{
+    constructor(message){
+        super(message);
+        this.name = 'CustomError';
+    }
+}
+window.addEventListener('error', function globalErrorListener(event) {
+  console.log('Global Error Caught via addEventListener:', event.message);
+  fetch('/log-error', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      message: event.message,
+      source: event.filename,
+      lineno: event.lineno,
+      colno: event.colno,
+      error: event.error ? event.error.stack : null
+    })
+  }).catch(err => console.warn('Failed to send error to server:', err));
+
+  if (window.TrackJS) {
+    TrackJS.track(event.message);
+  }
+});
